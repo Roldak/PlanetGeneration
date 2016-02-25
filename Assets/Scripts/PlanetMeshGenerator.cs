@@ -92,7 +92,7 @@ public class PlanetMeshGenerator : MonoBehaviour {
 		mesh.normals = normals;
 		//mesh.RecalculateNormals();
 
-		GetComponent<MeshFilter>().mesh = mesh;
+		GetComponent<MeshFilter>().sharedMesh = mesh;
 
 		// Materials
 
@@ -104,11 +104,11 @@ public class PlanetMeshGenerator : MonoBehaviour {
 			tex.wrapMode = TextureWrapMode.Clamp;
 			tex.Apply();
 
-			mat[i] = new Material(GetComponent<Renderer>().material);
+			mat[i] = new Material(GetComponent<Renderer>().sharedMaterial);
 			mat[i].mainTexture = tex;
 		}
 
-		GetComponent<Renderer>().materials = mat;
+		GetComponent<Renderer>().sharedMaterials = mat;
 
 		// Collider
 		
