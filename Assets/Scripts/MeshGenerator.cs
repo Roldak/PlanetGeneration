@@ -16,7 +16,7 @@ public class MeshGenerator {
 	public int resolutionX;
 	public int resolutionY;
 	public bool autoGenerateNormalsArray;
-	bool makeClockwiseTriangles;
+	public bool makeClockwiseTriangles;
 	public float derivativeResolution;
 
 	public Vector3[] vertices;

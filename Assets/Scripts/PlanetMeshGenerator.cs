@@ -58,26 +58,22 @@ public class PlanetMeshGenerator : MonoBehaviour {
 		parametrizations[3] = (float x, float y) => withNoise(centeredNormalizedPosition(0f, x, y), x, y);
 		parametrizations[4] = (float x, float y) => withNoise(centeredNormalizedPosition(y, x, 1f), x, y);
 		parametrizations[5] = (float x, float y) => withNoise(centeredNormalizedPosition(x, y, 0f), x, y);
-		
-		Stopwatch watch = Stopwatch.StartNew();
-		if (enableMultithreading) {
-			Parallel.For(0, 6, 1, (int i) => {
-				MeshGenerator gen = new MeshGenerator();
-				gen.setParameters(X, Y, true, false);
-				gen.setVerticesOutputArrays(vertices, normals, uvs, i * X * Y);
-				gen.setIndicesOutputArray(triangles[i], 0);
-				gen.setColorsOutputArray(colors[i], 0);
-				gen.Generate(parametrizations[i]);
-			});
-		} else {
+
+		Action<int> generateFace = (int i) => {
 			MeshGenerator gen = new MeshGenerator();
 			gen.setParameters(X, Y, true, false);
-			gen.setVerticesOutputArrays(vertices, normals, uvs, 0);
+			gen.setVerticesOutputArrays(vertices, normals, uvs, i * X * Y);
+			gen.setIndicesOutputArray(triangles[i], 0);
+			gen.setColorsOutputArray(colors[i], 0);
+			gen.Generate(parametrizations[i]);
+		};
 
+		Stopwatch watch = Stopwatch.StartNew();
+		if (enableMultithreading) {
+			Parallel.For(0, 6, 1, generateFace);
+		} else {
 			for (int i = 0; i < 6; ++i) {
-				gen.setIndicesOutputArray(triangles[i], 0);
-				gen.setColorsOutputArray(colors[i], 0);
-				gen.Generate(parametrizations[i]);
+				generateFace(i);
 			}
 		}
 		UnityEngine.Debug.Log(watch.Elapsed.TotalSeconds);
