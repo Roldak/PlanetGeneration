@@ -20,6 +20,8 @@ public class PlanetMeshGenerator : MonoBehaviour {
 	public float lacunarity = 2f;
 	public float persistance = 0.5f;
 
+	public bool enableMultithreading = true;
+
 	// Use this for initialization
 	void Start () {
 		Generate();
@@ -35,17 +37,20 @@ public class PlanetMeshGenerator : MonoBehaviour {
 		Stopwatch watch = Stopwatch.StartNew();
 
 		Mesh mesh = new Mesh();
-		Material[] mat = new Material[6];
-		for (int i = 0; i < 6; ++i) {
-			mat[i] = new Material(GetComponent<Renderer>().material);
-		}
+		mesh.subMeshCount = 6;
 
 		Vector3[] vertices = new Vector3[X * Y * 6];
 		Vector3[] normals= new Vector3[X * Y * 6];
 		Vector2[] uvs = new Vector2[X * Y * 6];
 		
 		int[][] triangles = new int[6][];
-		Color[] colors = new Color[X * Y];
+		Color[][] colors = new Color[6][];
+
+		for (int i = 0; i < 6; ++i) {
+			triangles[i] = new int[(X - 1) * (Y - 1) * 2 * 3];
+			colors[i] = new Color[X * Y];
+		}
+
 		MeshGenerator.VertexParametrization[] parametrizations = new MeshGenerator.VertexParametrization[6];
 
 		parametrizations[0] = (float x, float y) => withNoise(centeredNormalizedPosition(x, 1f, y), x, y);
@@ -55,25 +60,27 @@ public class PlanetMeshGenerator : MonoBehaviour {
 		parametrizations[4] = (float x, float y) => withNoise(centeredNormalizedPosition(y, x, 1f), x, y);
 		parametrizations[5] = (float x, float y) => withNoise(centeredNormalizedPosition(x, y, 0f), x, y);
 
-		MeshGenerator gen = new MeshGenerator();
-		gen.setParameters(X, Y, true, false);
-		gen.setVerticesOutputArrays(vertices, normals, uvs, 0);
-		
-		mesh.subMeshCount = 6;
-		for (int i = 0; i < 6; ++i) {
-			int[] submeshTriangles = new int[(X - 1) * (Y - 1) * 2 * 3];
-			gen.setIndicesOutputArray(submeshTriangles, 0);
-			gen.setColorsOutputArray(colors, 0);
-			gen.Generate(parametrizations[i]);
+		if (enableMultithreading) {
+			Parallel.For(0, 6, 1, (int i) => {
+				UnityEngine.Debug.Log(i);
+				MeshGenerator gen = new MeshGenerator();
+				gen.setParameters(X, Y, true, false);
+				gen.setVerticesOutputArrays(vertices, normals, uvs, i * X * Y);
+				gen.setIndicesOutputArray(triangles[i], 0);
+				gen.setColorsOutputArray(colors[i], 0);
+				gen.Generate(parametrizations[i]);
+				UnityEngine.Debug.Log(i);
+			});
+		} else {
+			MeshGenerator gen = new MeshGenerator();
+			gen.setParameters(X, Y, true, false);
+			gen.setVerticesOutputArrays(vertices, normals, uvs, 0);
 
-			Texture2D tex = new Texture2D(X, Y);
-			tex.SetPixels(colors);
-			tex.filterMode = FilterMode.Trilinear;
-			tex.wrapMode = TextureWrapMode.Clamp;
-			tex.Apply();
-
-			mat[i].mainTexture = tex;
-			triangles[i] = submeshTriangles;
+			for (int i = 0; i < 6; ++i) {
+				gen.setIndicesOutputArray(triangles[i], 0);
+				gen.setColorsOutputArray(colors[i], 0);
+				gen.Generate(parametrizations[i]);
+			}
 		}
 
 		mesh.vertices = vertices;
@@ -87,6 +94,21 @@ public class PlanetMeshGenerator : MonoBehaviour {
 		//mesh.RecalculateNormals();
 
 		GetComponent<MeshFilter>().mesh = mesh;
+
+		// Materials
+
+		Material[] mat = new Material[6];
+		for (int i = 0; i < 6; ++i) {
+			Texture2D tex = new Texture2D(X, Y);
+			tex.SetPixels(colors[i]);
+			tex.filterMode = FilterMode.Trilinear;
+			tex.wrapMode = TextureWrapMode.Clamp;
+			tex.Apply();
+
+			mat[i] = new Material(GetComponent<Renderer>().material);
+			mat[i].mainTexture = tex;
+		}
+
 		GetComponent<Renderer>().materials = mat;
 
 		// Collider
