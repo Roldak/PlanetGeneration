@@ -34,7 +34,6 @@ public class PlanetMeshGenerator : MonoBehaviour {
 
 	public void Generate() {
 		// Mesh and Material
-		Stopwatch watch = Stopwatch.StartNew();
 
 		Mesh mesh = new Mesh();
 		mesh.subMeshCount = 6;
@@ -59,17 +58,16 @@ public class PlanetMeshGenerator : MonoBehaviour {
 		parametrizations[3] = (float x, float y) => withNoise(centeredNormalizedPosition(0f, x, y), x, y);
 		parametrizations[4] = (float x, float y) => withNoise(centeredNormalizedPosition(y, x, 1f), x, y);
 		parametrizations[5] = (float x, float y) => withNoise(centeredNormalizedPosition(x, y, 0f), x, y);
-
+		
+		Stopwatch watch = Stopwatch.StartNew();
 		if (enableMultithreading) {
 			Parallel.For(0, 6, 1, (int i) => {
-				UnityEngine.Debug.Log(i);
 				MeshGenerator gen = new MeshGenerator();
 				gen.setParameters(X, Y, true, false);
 				gen.setVerticesOutputArrays(vertices, normals, uvs, i * X * Y);
 				gen.setIndicesOutputArray(triangles[i], 0);
 				gen.setColorsOutputArray(colors[i], 0);
 				gen.Generate(parametrizations[i]);
-				UnityEngine.Debug.Log(i);
 			});
 		} else {
 			MeshGenerator gen = new MeshGenerator();
@@ -82,6 +80,7 @@ public class PlanetMeshGenerator : MonoBehaviour {
 				gen.Generate(parametrizations[i]);
 			}
 		}
+		UnityEngine.Debug.Log(watch.Elapsed.TotalSeconds);
 
 		mesh.vertices = vertices;
 		mesh.uv = uvs;
@@ -118,8 +117,6 @@ public class PlanetMeshGenerator : MonoBehaviour {
 			collider.sharedMesh = null;
 			collider.sharedMesh = mesh;
 		}
-		
-		UnityEngine.Debug.Log(watch.Elapsed.TotalSeconds);
 	}
 
 	private static Vector3 centeredNormalizedPosition(float x, float y, float z) {
@@ -132,12 +129,7 @@ public class PlanetMeshGenerator : MonoBehaviour {
 		MeshGenerator.Vertex vert;
 		vert.position = radius * vertexPos * (1 + sample * noiseMagnitude);
 		vert.uv = new Vector2(x, y);
-		//vert.color = Color.Lerp(Color.black, Color.white, sample * 2f + 0.5f);
-		if (sample < 0) {
-			vert.color = Color.blue;
-		} else {
-			vert.color = Color.grey;
-		}
+		vert.color = Color.Lerp(Color.black, Color.white, sample * 2f + 0.5f);
 		vert.normal = Vector3.zero; // anything
 
 		return vert;

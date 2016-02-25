@@ -1,6 +1,10 @@
 ﻿using UnityEngine;
 using System.Collections;
 
+/*
+ * REFERENCE : http://catlikecoding.com/unity/tutorials/noise/
+ */
+
 public static class PerlinNoise {
 	private static int[] PERM = {
 		151,160,137, 91, 90, 15,131, 13,201, 95, 96, 53,194,233,  7,225,
