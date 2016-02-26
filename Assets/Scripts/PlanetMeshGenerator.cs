@@ -119,13 +119,23 @@ public class PlanetMeshGenerator : MonoBehaviour {
 		return new Vector3(x * 2f - 1f, y * 2f - 1f, z * 2f - 1f).normalized;
 	}
 
-	private MeshGenerator.Vertex withNoise(Vector3 vertexPos, float x, float y) {
-		float sample = FBMNoise.valueAt(vertexPos / noiseScale + noiseOffset, octaves, lacunarity, persistance);
+    private static readonly float SEA_LEVEL = -0.1f;
+    private static readonly Color SAND_COLOR = Color.HSVToRGB(0.13f, 0.61f, 0.79f);
+    private static readonly Color LAND_COLOR = new Color(0.651f, 0.40f, 0.314f);
+    private static readonly float SAND_THRESHOLD = 0f;
+
+    private MeshGenerator.Vertex withNoise(Vector3 vertexPos, float x, float y) {
+        float sample = FBMNoise.valueAt(vertexPos / noiseScale + noiseOffset, octaves, lacunarity, persistance);
 
 		MeshGenerator.Vertex vert;
 		vert.position = radius * vertexPos * (1 + sample * noiseMagnitude);
 		vert.uv = new Vector2(x, y);
-		vert.color = Color.Lerp(Color.black, Color.white, sample * 2f + 0.5f);
+		vert.color = Color.Lerp(Color.black, Color.white, sample * 2f + 0.5f) * LAND_COLOR;
+        if (sample < SEA_LEVEL) {
+            vert.color = SAND_COLOR;
+        } else if (sample < SAND_THRESHOLD) {
+            vert.color = Color.Lerp(SAND_COLOR, vert.color, Mathf.InverseLerp(SEA_LEVEL, SAND_THRESHOLD, sample));
+        }
 		vert.normal = Vector3.zero; // anything
 
 		return vert;
