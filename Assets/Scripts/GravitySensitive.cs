@@ -11,7 +11,7 @@ public class GravitySensitive : MonoBehaviour {
 
 	void FixedUpdate () {
         foreach(GravityProducer producer in GameObject.FindObjectsOfType<GravityProducer>()) {
-            Vector3 r = producer.transform.position - transform.position;
+            Vector3 r = producer.Center - transform.position;
             float magnitude = r.magnitude;
             Vector3 force = GravityProducer.G * producer.mass * r / (magnitude * magnitude * magnitude);
             rb.AddForce(force, ForceMode.Acceleration);

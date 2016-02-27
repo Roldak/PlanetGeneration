@@ -3,12 +3,13 @@ using System;
 using System.Collections;
 using System.Diagnostics;
 
-[RequireComponent(typeof(MeshFilter))]
-[RequireComponent(typeof(MeshRenderer))]
 public class PlanetMeshGenerator : MonoBehaviour {
     public float radius = 1f;
     public int X = 100;
     public int Y = 100;
+
+    public Material terrainMaterial;
+    public PhysicMaterial terrainPhysicMaterial;
 
     [Range(0, 1)]
     public float noiseMagnitude = 0.5f;
@@ -20,7 +21,10 @@ public class PlanetMeshGenerator : MonoBehaviour {
     public float lacunarity = 2f;
     public float persistance = 0.5f;
 
+    public bool generateColliders = true;
     public bool enableMultithreading = true;
+
+    private GameObject[] childs = null;
 
     // Use this for initialization
     void Start() {
@@ -33,24 +37,28 @@ public class PlanetMeshGenerator : MonoBehaviour {
     }
 
     public void Generate() {
-        // Mesh and Material
+        int N = 6;
 
-        Mesh mesh = new Mesh();
-        mesh.subMeshCount = 6;
+        if (childs != null) {
+            foreach (GameObject child in childs) {
+                DestroyImmediate(child);
+            }
+        }
+        childs = new GameObject[N];
 
-        Vector3[] vertices = new Vector3[X * Y * 6];
-        Vector3[] normals = new Vector3[X * Y * 6];
-        Vector2[] uvs = new Vector2[X * Y * 6];
+        Vector3[][] vertices = new Vector3[N][];
+        Vector3[][] normals = new Vector3[N][];
+        Vector2[][] uvs = new Vector2[N][];
 
-        int[][] triangles = new int[6][];
-        Color[][] colors = new Color[6][];
+        int[][] triangles = new int[N][];
+        Color[][] colors = new Color[N][];
 
-        for (int i = 0; i < 6; ++i) {
+        for (int i = 0; i < N; ++i) {
             triangles[i] = new int[(X - 1) * (Y - 1) * 2 * 3];
             colors[i] = new Color[X * Y];
         }
 
-        MeshGenerator.VertexParametrization[] parametrizations = new MeshGenerator.VertexParametrization[6];
+        MeshGenerator.VertexParametrization[] parametrizations = new MeshGenerator.VertexParametrization[N];
 
         parametrizations[0] = (float x, float y) => withNoise(centeredNormalizedPosition(x, 1f, y), x, y);
         parametrizations[1] = (float x, float y) => withNoise(centeredNormalizedPosition(y, 0f, x), x, y);
@@ -60,9 +68,13 @@ public class PlanetMeshGenerator : MonoBehaviour {
         parametrizations[5] = (float x, float y) => withNoise(centeredNormalizedPosition(x, y, 0f), x, y);
 
         Action<int> generateFace = (int i) => {
+            vertices[i] = new Vector3[X * Y];
+            normals[i] = new Vector3[X * Y];
+            uvs[i] = new Vector2[X * Y];
+
             MeshGenerator gen = new MeshGenerator();
             gen.setParameters(X, Y, true, false);
-            gen.setVerticesOutputArrays(vertices, normals, uvs, i * X * Y);
+            gen.setVerticesOutputArrays(vertices[i], normals[i], uvs[i], 0);
             gen.setIndicesOutputArray(triangles[i], 0);
             gen.setColorsOutputArray(colors[i], 0);
             gen.Generate(parametrizations[i]);
@@ -70,48 +82,53 @@ public class PlanetMeshGenerator : MonoBehaviour {
 
         Stopwatch watch = Stopwatch.StartNew();
         if (enableMultithreading) {
-            Parallel.For(0, 6, 1, generateFace);
+            Parallel.For(0, N, 1, generateFace);
         } else {
-            for (int i = 0; i < 6; ++i) {
+            for (int i = 0; i < N; ++i) {
                 generateFace(i);
             }
         }
         UnityEngine.Debug.Log(watch.Elapsed.TotalSeconds);
 
-        mesh.vertices = vertices;
-        mesh.uv = uvs;
-        for (int i = 0; i < 6; ++i) {
-            mesh.SetTriangles(triangles[i], i);
-        }
-        mesh.Optimize();
-        mesh.RecalculateBounds();
-        mesh.normals = normals;
-        //mesh.RecalculateNormals();
+        for (int i = 0; i < N; i++) {
+            childs[i] = new GameObject("part" + i);
+            childs[i].transform.parent = transform;
 
-        GetComponent<MeshFilter>().sharedMesh = mesh;
+            // MESH
 
-        // Materials
+            Mesh mesh = new Mesh();
 
-        Material[] mat = new Material[6];
-        for (int i = 0; i < 6; ++i) {
+            mesh.vertices = vertices[i];
+            mesh.triangles = triangles[i];
+            mesh.normals = normals[i];
+            mesh.uv = uvs[i];
+            mesh.Optimize();
+            mesh.RecalculateBounds();
+            //mesh.RecalculateNormals();
+            
+            MeshFilter mf = childs[i].AddComponent<MeshFilter>();
+            mf.sharedMesh = mesh;
+
+            // MATERIAL
+
             Texture2D tex = new Texture2D(X, Y);
             tex.SetPixels(colors[i]);
             tex.filterMode = FilterMode.Trilinear;
             tex.wrapMode = TextureWrapMode.Clamp;
             tex.Apply();
 
-            mat[i] = new Material(GetComponent<Renderer>().sharedMaterial);
-            mat[i].mainTexture = tex;
-        }
+            Renderer r = childs[i].AddComponent<MeshRenderer>();
+            r.sharedMaterial = new Material(terrainMaterial);
+            r.sharedMaterial.mainTexture = tex;
 
-        GetComponent<Renderer>().sharedMaterials = mat;
+            // COLLIDER
 
-        // Collider
-
-        MeshCollider collider = GetComponent<MeshCollider>();
-        if (collider) {
-            collider.sharedMesh = null;
-            collider.sharedMesh = mesh;
+            if (generateColliders) {
+                MeshCollider c = childs[i].AddComponent<MeshCollider>();
+                c.sharedMesh = null;
+                c.sharedMesh = mesh;
+                c.sharedMaterial = terrainPhysicMaterial;
+            }
         }
     }
 

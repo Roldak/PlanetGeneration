@@ -14,21 +14,32 @@ public class RigidBodyFPSController : MonoBehaviour {
     private GravityProducer land;
     private Vector3 up = Vector3.up;
 
+    private int landRefs = 0;
+
 	// Use this for initialization
 	void Start () {
         rb = GetComponent<Rigidbody>();
 	}
 
     void OnTriggerEnter(Collider col) {
-        GravityProducer producer = col.GetComponent<GravityProducer>();
+        GravityProducer producer = col.GetComponentInParent<GravityProducer>();
         if (producer) {
-            land = producer;
+            if (land && producer == land) {
+                ++landRefs;
+            } else {
+                land = producer;
+                landRefs = 1;
+            }
         }
     }
 
     void OnTriggerExit(Collider col) {
-        if (col.gameObject == land.gameObject) {
-            land = null;
+        if (land) {
+            if (col.GetComponentInParent<GravityProducer>() == land) {
+                if ((--landRefs) <= 0) {
+                    land = null;
+                }
+            }
         }
     }
 
@@ -77,7 +88,7 @@ public class RigidBodyFPSController : MonoBehaviour {
 
     private void handleGravityForce() {
         if (land) {
-            up = (transform.position - land.transform.position).normalized;
+            up = (transform.position - land.Center).normalized;
 
             Vector3 axis;
             float angleRad;
