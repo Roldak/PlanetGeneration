@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
 
 public class PlanetMeshGenerator : MonoBehaviour {
@@ -24,7 +25,7 @@ public class PlanetMeshGenerator : MonoBehaviour {
     public bool generateColliders = true;
     public bool enableMultithreading = true;
 
-    private GameObject[] childs = null;
+    private List<GameObject> childs = new List<GameObject>();
 
     // Use this for initialization
     void Start() {
@@ -37,14 +38,25 @@ public class PlanetMeshGenerator : MonoBehaviour {
     }
 
     public void Generate() {
-        int N = 6;
-
-        if (childs != null) {
-            foreach (GameObject child in childs) {
-                DestroyImmediate(child);
-            }
+        foreach (GameObject child in childs) {
+            DestroyImmediate(child);
         }
-        childs = new GameObject[N];
+        childs.Clear();
+        
+        MeshGenerator.VertexParametrization[] parametrizations = new MeshGenerator.VertexParametrization[6];
+
+        parametrizations[0] = (float x, float y) => withNoise(centeredNormalizedPosition(x, 1f, y), x, y); // top
+        parametrizations[1] = (float x, float y) => withNoise(centeredNormalizedPosition(y, 0f, x), x, y); // bottom
+        parametrizations[2] = (float x, float y) => withNoise(centeredNormalizedPosition(1f, y, x), x, y); // right
+        parametrizations[3] = (float x, float y) => withNoise(centeredNormalizedPosition(0f, x, y), x, y); // left
+        parametrizations[4] = (float x, float y) => withNoise(centeredNormalizedPosition(y, x, 1f), x, y); // back
+        parametrizations[5] = (float x, float y) => withNoise(centeredNormalizedPosition(x, y, 0f), x, y); // front
+
+        childs.AddRange(GenerateFromParametrizations(parametrizations, "part", 0));
+    }
+
+    public GameObject[] GenerateFromParametrizations(MeshGenerator.VertexParametrization[] parametrizations, string baseName, int lodLevel) {
+        int N = parametrizations.GetLength(0);
 
         Vector3[][] vertices = new Vector3[N][];
         Vector3[][] normals = new Vector3[N][];
@@ -53,21 +65,9 @@ public class PlanetMeshGenerator : MonoBehaviour {
         int[][] triangles = new int[N][];
         Color[][] colors = new Color[N][];
 
-        for (int i = 0; i < N; ++i) {
+        Action<int> generateFace = (int i) => {
             triangles[i] = new int[(X - 1) * (Y - 1) * 2 * 3];
             colors[i] = new Color[X * Y];
-        }
-
-        MeshGenerator.VertexParametrization[] parametrizations = new MeshGenerator.VertexParametrization[N];
-
-        parametrizations[0] = (float x, float y) => withNoise(centeredNormalizedPosition(x, 1f, y), x, y);
-        parametrizations[1] = (float x, float y) => withNoise(centeredNormalizedPosition(y, 0f, x), x, y);
-        parametrizations[2] = (float x, float y) => withNoise(centeredNormalizedPosition(1f, y, x), x, y);
-        parametrizations[3] = (float x, float y) => withNoise(centeredNormalizedPosition(0f, x, y), x, y);
-        parametrizations[4] = (float x, float y) => withNoise(centeredNormalizedPosition(y, x, 1f), x, y);
-        parametrizations[5] = (float x, float y) => withNoise(centeredNormalizedPosition(x, y, 0f), x, y);
-
-        Action<int> generateFace = (int i) => {
             vertices[i] = new Vector3[X * Y];
             normals[i] = new Vector3[X * Y];
             uvs[i] = new Vector2[X * Y];
@@ -79,7 +79,7 @@ public class PlanetMeshGenerator : MonoBehaviour {
             gen.setColorsOutputArray(colors[i], 0);
             gen.Generate(parametrizations[i]);
         };
-
+        
         Stopwatch watch = Stopwatch.StartNew();
         if (enableMultithreading) {
             Parallel.For(0, N, 1, generateFace);
@@ -90,9 +90,11 @@ public class PlanetMeshGenerator : MonoBehaviour {
         }
         UnityEngine.Debug.Log(watch.Elapsed.TotalSeconds);
 
+        GameObject[] objects = new GameObject[N];
+
         for (int i = 0; i < N; i++) {
-            childs[i] = new GameObject("part" + i);
-            childs[i].transform.parent = transform;
+            GameObject child = new GameObject(baseName + i);
+            child.transform.parent = transform;
 
             // MESH
 
@@ -105,8 +107,8 @@ public class PlanetMeshGenerator : MonoBehaviour {
             mesh.Optimize();
             mesh.RecalculateBounds();
             //mesh.RecalculateNormals();
-            
-            MeshFilter mf = childs[i].AddComponent<MeshFilter>();
+
+            MeshFilter mf = child.AddComponent<MeshFilter>();
             mf.sharedMesh = mesh;
 
             // MATERIAL
@@ -117,19 +119,30 @@ public class PlanetMeshGenerator : MonoBehaviour {
             tex.wrapMode = TextureWrapMode.Clamp;
             tex.Apply();
 
-            Renderer r = childs[i].AddComponent<MeshRenderer>();
+            Renderer r = child.AddComponent<MeshRenderer>();
             r.sharedMaterial = new Material(terrainMaterial);
             r.sharedMaterial.mainTexture = tex;
 
             // COLLIDER
 
             if (generateColliders) {
-                MeshCollider c = childs[i].AddComponent<MeshCollider>();
-                c.sharedMesh = null;
-                c.sharedMesh = mesh;
-                c.sharedMaterial = terrainPhysicMaterial;
+                MeshCollider col = child.AddComponent<MeshCollider>();
+                col.sharedMesh = null;
+                col.sharedMesh = mesh;
+                col.sharedMaterial = terrainPhysicMaterial;
             }
+
+            // PLANET MESH SPLITTER
+            
+            PlanetMeshSplitter splitter = child.AddComponent<PlanetMeshSplitter>();
+            splitter.planetGenerator = this;
+            splitter.parametrization = parametrizations[i];
+            splitter.level = lodLevel;
+
+            objects[i] = child;
         }
+
+        return objects;
     }
 
     private static Vector3 centeredNormalizedPosition(float x, float y, float z) {
