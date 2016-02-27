@@ -7,6 +7,7 @@ public class RigidBodyFPSController : MonoBehaviour {
 
     public Camera FPSCamera;
     public float movingSpeed = 1f;
+    public float jumpImpulse = 2f;
     public float mouseSensitivity = 2.0f;
 
     private Rigidbody rb;
@@ -46,7 +47,9 @@ public class RigidBodyFPSController : MonoBehaviour {
     }
 
     private void handleCameraMovement() {
-        if (land != null) {
+        float verticalVelocity = Vector3.Dot(transform.InverseTransformVector(rb.velocity), Vector3.up);
+
+        if (Mathf.Abs(verticalVelocity) < 0.2f && land != null) {
             rb.velocity = Vector3.zero;
             Vector3 dir = Vector3.zero;
 
@@ -61,6 +64,9 @@ public class RigidBodyFPSController : MonoBehaviour {
             }
             if (Input.GetKey(KeyCode.RightArrow) || Input.GetKey(KeyCode.D)) {
                 dir += Vector3.right;
+            }
+            if (Input.GetKeyDown(KeyCode.Space)) {
+                dir += Vector3.up * jumpImpulse;
             }
 
             if (dir != Vector3.zero) {

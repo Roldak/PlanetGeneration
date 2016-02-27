@@ -15,7 +15,6 @@ public class GravitySensitive : MonoBehaviour {
             float magnitude = r.magnitude;
             Vector3 force = GravityProducer.G * producer.mass * r / (magnitude * magnitude * magnitude);
             rb.AddForce(force, ForceMode.Acceleration);
-            Debug.Log(magnitude);
         }
 	}
 }
