@@ -11,8 +11,7 @@ public class RigidBodyFPSController : MonoBehaviour {
     public float mouseSensitivity = 2.0f;
 
     private Rigidbody rb;
-    private GravityProducer land;
-    private Vector3 up = Vector3.up;
+    private GravityProducer land = null;
 
     private int landRefs = 0;
 
@@ -53,7 +52,7 @@ public class RigidBodyFPSController : MonoBehaviour {
         float h = Input.GetAxis("Mouse X");
         float v = Input.GetAxis("Mouse Y");
 
-        transform.RotateAround(FPSCamera.transform.position, up, h * mouseSensitivity);
+        transform.RotateAround(FPSCamera.transform.position, transform.TransformVector(Vector3.up), h * mouseSensitivity);
         FPSCamera.transform.RotateAround(FPSCamera.transform.position, FPSCamera.transform.TransformVector(Vector3.right), -v * mouseSensitivity);
     }
 
@@ -88,7 +87,7 @@ public class RigidBodyFPSController : MonoBehaviour {
 
     private void handleGravityForce() {
         if (land) {
-            up = (transform.position - land.Center).normalized;
+            Vector3 up = (transform.position - land.Center).normalized;
 
             Vector3 axis;
             float angleRad;

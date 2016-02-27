@@ -146,14 +146,17 @@ public class PlanetMeshGenerator : MonoBehaviour {
 
         MeshGenerator.Vertex vert;
         vert.position = radius * vertexPos * (1 + sample * noiseMagnitude);
+
         vert.uv = new Vector2(x, y);
+
         vert.color = Color.Lerp(Color.black, Color.white, sample * 2f + 0.5f) * LAND_COLOR;
         if (sample < SEA_LEVEL) {
             vert.color = SAND_COLOR;
         } else if (sample < SAND_THRESHOLD) {
             vert.color = Color.Lerp(SAND_COLOR, vert.color, Mathf.InverseLerp(SEA_LEVEL, SAND_THRESHOLD, sample));
         }
-        vert.normal = Vector3.zero; // anything
+
+        vert.normal = Vector3.zero;
 
         return vert;
     }
