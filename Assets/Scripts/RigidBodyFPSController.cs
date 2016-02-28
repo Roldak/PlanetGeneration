@@ -19,6 +19,8 @@ public class RigidBodyFPSController : MonoBehaviour {
 	// Use this for initialization
 	void Start () {
         rb = GetComponent<Rigidbody>();
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
 	}
 
     void OnTriggerEnter(Collider col) {

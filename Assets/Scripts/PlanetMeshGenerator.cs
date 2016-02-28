@@ -28,7 +28,7 @@ public class PlanetMeshGenerator : MonoBehaviour {
     public bool enableMultithreading = true;
 
     private List<GameObject> childs = new List<GameObject>();
-    
+
     // Use this for initialization
     void Start() {
         Generate();
@@ -77,7 +77,7 @@ public class PlanetMeshGenerator : MonoBehaviour {
             gen.setColorsOutputArray(colors[i], 0);
             gen.Generate(parametrizations[i]);
         };
-        
+
         if (enableMultithreading) {
             Parallel.For(0, N, 1, generateFace);
         } else {
@@ -129,7 +129,7 @@ public class PlanetMeshGenerator : MonoBehaviour {
             }
 
             // PLANET MESH SPLITTER
-            
+
             PlanetMeshSplitter splitter = child.AddComponent<PlanetMeshSplitter>();
             splitter.planetGenerator = this;
             splitter.faceParametrization = faceParametrization[i];
@@ -149,7 +149,7 @@ public class PlanetMeshGenerator : MonoBehaviour {
     private static readonly float SEA_LEVEL = -0.1f;
     private static readonly Color SAND_COLOR = Color.HSVToRGB(0.13f, 0.61f, 0.79f);
     private static readonly Color LAND_COLOR = new Color(0.651f, 0.40f, 0.314f);
-    private static readonly float SAND_THRESHOLD = 0f;
+    private static readonly float SAND_THRESHOLD = 0.1f;
 
     private MeshGenerator.Vertex withNoise(Vector3 vertexPos, float x, float y) {
         float sample = FBMNoise.valueAt(vertexPos / noiseScale + noiseOffset, octaves, lacunarity, persistance);
@@ -159,7 +159,7 @@ public class PlanetMeshGenerator : MonoBehaviour {
 
         vert.uv = new Vector2(x, y);
 
-        vert.color = Color.Lerp(Color.black, Color.white, sample + 1f) * LAND_COLOR;
+        vert.color = Color.Lerp(Color.black, Color.white, sample / noiseMagnitude) * LAND_COLOR;
         if (sample < SEA_LEVEL) {
             vert.color = SAND_COLOR;
         } else if (sample < SAND_THRESHOLD) {
@@ -170,7 +170,7 @@ public class PlanetMeshGenerator : MonoBehaviour {
 
         return vert;
     }
-        
+
     private static Vector3 TopFace(float x, float y)    { return centeredNormalizedPosition(x, 1f, y); }
     private static Vector3 BottomFace(float x, float y) { return centeredNormalizedPosition(y, 0f, x); }
     private static Vector3 RightFace(float x, float y)  { return centeredNormalizedPosition(1f, y, x); }
