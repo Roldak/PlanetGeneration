@@ -6,7 +6,7 @@ public class PlanetMeshSplitter : MonoBehaviour {
     public static readonly float REPEAT_RATE = 0.3f;
 
     public PlanetMeshGenerator planetGenerator;
-    public MeshGenerator.VertexParametrization parametrization;
+    public PlanetMeshGenerator.FaceParametrization faceParametrization;
     public int level = 0;
 
     public bool CanSplit { get { return gameObject.activeSelf;  } }
@@ -50,14 +50,14 @@ public class PlanetMeshSplitter : MonoBehaviour {
     private void split() {
         gameObject.SetActive(false);
         
-        MeshGenerator.VertexParametrization[] parametrizations = new MeshGenerator.VertexParametrization[4];
+        PlanetMeshGenerator.FaceParametrization[] faceParametrizations = new PlanetMeshGenerator.FaceParametrization[4];
 
-        parametrizations[0] = (float x, float y) => parametrization(x * 0.5f, y * 0.5f);
-        parametrizations[1] = (float x, float y) => parametrization(x * 0.5f + 0.5f, y * 0.5f);
-        parametrizations[2] = (float x, float y) => parametrization(x * 0.5f, y * 0.5f + 0.5f);
-        parametrizations[3] = (float x, float y) => parametrization(x * 0.5f + 0.5f, y * 0.5f + 0.5f);
+        faceParametrizations[0] = (float x, float y) => faceParametrization(x * 0.5f, y * 0.5f);
+        faceParametrizations[1] = (float x, float y) => faceParametrization(x * 0.5f + 0.5f, y * 0.5f);
+        faceParametrizations[2] = (float x, float y) => faceParametrization(x * 0.5f, y * 0.5f + 0.5f);
+        faceParametrizations[3] = (float x, float y) => faceParametrization(x * 0.5f + 0.5f, y * 0.5f + 0.5f);
 
-        childs = planetGenerator.GenerateFromParametrizations(parametrizations, name, level + 1);
+        childs = planetGenerator.GenerateFromFaceParametrizations(faceParametrizations, name, level + 1);
     }
 
     private void merge() {

@@ -6,6 +6,7 @@ public class RigidBodyFPSController : MonoBehaviour {
     private static readonly float Epsilon = 0.00001f;
 
     public Camera FPSCamera;
+    public CapsuleCollider bodyCollider;
     public float movingSpeed = 1f;
     public float jumpImpulse = 2f;
     public float mouseSensitivity = 2.0f;
@@ -43,23 +44,29 @@ public class RigidBodyFPSController : MonoBehaviour {
     }
 
     void FixedUpdate() {
-        handleCameraRotation();
         handleCameraMovement();
+        handleBodyMovement();
         handleGravityForce();
     }
 
-    private void handleCameraRotation() {
+    private void handleCameraMovement() {
         float h = Input.GetAxis("Mouse X");
         float v = Input.GetAxis("Mouse Y");
 
-        transform.RotateAround(FPSCamera.transform.position, transform.TransformVector(Vector3.up), h * mouseSensitivity);
-        FPSCamera.transform.RotateAround(FPSCamera.transform.position, FPSCamera.transform.TransformVector(Vector3.right), -v * mouseSensitivity);
+        transform.RotateAround(FPSCamera.transform.position, transform.up, h * mouseSensitivity);
+        FPSCamera.transform.RotateAround(FPSCamera.transform.position, FPSCamera.transform.right, -v * mouseSensitivity);
     }
 
-    private void handleCameraMovement() {
+    private void handleBodyMovement() {
         float verticalVelocity = Vector3.Dot(transform.InverseTransformVector(rb.velocity), Vector3.up);
-
-        if (Mathf.Abs(verticalVelocity) < 0.2f && land != null) {
+        
+        if (Mathf.Abs(verticalVelocity) < 0.1f && land != null) {
+            // stick to ground
+            /*RaycastHit hitinfo;
+            if (land.GetComponent<Collider>().Raycast(new Ray(transform.position, -transform.up), out hitinfo, 10f)) {
+                float dist = (hitinfo.point - transform.position).magnitude;
+                transform.position -= transform.up.normalized * (dist - bodyCollider.height * 0.5f);
+            }*/
             rb.velocity = Vector3.zero;
             Vector3 dir = Vector3.zero;
 
@@ -87,12 +94,12 @@ public class RigidBodyFPSController : MonoBehaviour {
 
     private void handleGravityForce() {
         if (land) {
-            Vector3 up = (transform.position - land.Center).normalized;
+            Vector3 newup = (transform.position - land.Center).normalized;
 
             Vector3 axis;
             float angleRad;
 
-            FromToAxisAngle(transform.TransformVector(Vector3.up), up, out axis, out angleRad);
+            FromToAxisAngle(transform.up, newup, out axis, out angleRad);
             transform.Rotate(axis, angleRad * Mathf.Rad2Deg, Space.World);
         }
     }

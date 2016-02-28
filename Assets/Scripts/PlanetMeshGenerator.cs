@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 
 public class PlanetMeshGenerator : MonoBehaviour {
+    public delegate Vector3 FaceParametrization(float x, float y);
+
     public float radius = 1f;
     public int X = 100;
     public int Y = 100;
@@ -26,7 +28,7 @@ public class PlanetMeshGenerator : MonoBehaviour {
     public bool enableMultithreading = true;
 
     private List<GameObject> childs = new List<GameObject>();
-
+    
     // Use this for initialization
     void Start() {
         Generate();
@@ -42,21 +44,17 @@ public class PlanetMeshGenerator : MonoBehaviour {
             DestroyImmediate(child);
         }
         childs.Clear();
-        
-        MeshGenerator.VertexParametrization[] parametrizations = new MeshGenerator.VertexParametrization[6];
-
-        parametrizations[0] = (float x, float y) => withNoise(centeredNormalizedPosition(x, 1f, y), x, y); // top
-        parametrizations[1] = (float x, float y) => withNoise(centeredNormalizedPosition(y, 0f, x), x, y); // bottom
-        parametrizations[2] = (float x, float y) => withNoise(centeredNormalizedPosition(1f, y, x), x, y); // right
-        parametrizations[3] = (float x, float y) => withNoise(centeredNormalizedPosition(0f, x, y), x, y); // left
-        parametrizations[4] = (float x, float y) => withNoise(centeredNormalizedPosition(y, x, 1f), x, y); // back
-        parametrizations[5] = (float x, float y) => withNoise(centeredNormalizedPosition(x, y, 0f), x, y); // front
-
-        childs.AddRange(GenerateFromParametrizations(parametrizations, "part", 0));
+        childs.AddRange(GenerateFromFaceParametrizations(CUBE_FACE_PARAMETRIZATIONS, "part", 0));
     }
 
-    public GameObject[] GenerateFromParametrizations(MeshGenerator.VertexParametrization[] parametrizations, string baseName, int lodLevel) {
-        int N = parametrizations.GetLength(0);
+    public GameObject[] GenerateFromFaceParametrizations(FaceParametrization[] faceParametrization, string baseName, int lodLevel) {
+        int N = faceParametrization.GetLength(0);
+        MeshGenerator.VertexParametrization[] parametrizations = new MeshGenerator.VertexParametrization[N];
+
+        for (int i = 0; i < N; i++) {
+            FaceParametrization face = faceParametrization[i];
+            parametrizations[i] = (float x, float y) => withNoise(face(x, y), x, y);
+        }
 
         Vector3[][] vertices = new Vector3[N][];
         Vector3[][] normals = new Vector3[N][];
@@ -80,7 +78,6 @@ public class PlanetMeshGenerator : MonoBehaviour {
             gen.Generate(parametrizations[i]);
         };
         
-        Stopwatch watch = Stopwatch.StartNew();
         if (enableMultithreading) {
             Parallel.For(0, N, 1, generateFace);
         } else {
@@ -88,10 +85,10 @@ public class PlanetMeshGenerator : MonoBehaviour {
                 generateFace(i);
             }
         }
-        UnityEngine.Debug.Log(watch.Elapsed.TotalSeconds);
 
         GameObject[] objects = new GameObject[N];
 
+        Stopwatch watch = Stopwatch.StartNew();
         for (int i = 0; i < N; i++) {
             GameObject child = new GameObject(baseName + i);
             child.transform.parent = transform;
@@ -106,7 +103,6 @@ public class PlanetMeshGenerator : MonoBehaviour {
             mesh.uv = uvs[i];
             mesh.Optimize();
             mesh.RecalculateBounds();
-            //mesh.RecalculateNormals();
 
             MeshFilter mf = child.AddComponent<MeshFilter>();
             mf.sharedMesh = mesh;
@@ -136,12 +132,13 @@ public class PlanetMeshGenerator : MonoBehaviour {
             
             PlanetMeshSplitter splitter = child.AddComponent<PlanetMeshSplitter>();
             splitter.planetGenerator = this;
-            splitter.parametrization = parametrizations[i];
+            splitter.faceParametrization = faceParametrization[i];
             splitter.level = lodLevel;
 
             objects[i] = child;
         }
 
+        UnityEngine.Debug.Log(watch.Elapsed.TotalSeconds);
         return objects;
     }
 
@@ -162,7 +159,7 @@ public class PlanetMeshGenerator : MonoBehaviour {
 
         vert.uv = new Vector2(x, y);
 
-        vert.color = Color.Lerp(Color.black, Color.white, sample * 2f + 0.5f) * LAND_COLOR;
+        vert.color = Color.Lerp(Color.black, Color.white, sample + 1f) * LAND_COLOR;
         if (sample < SEA_LEVEL) {
             vert.color = SAND_COLOR;
         } else if (sample < SAND_THRESHOLD) {
@@ -173,4 +170,15 @@ public class PlanetMeshGenerator : MonoBehaviour {
 
         return vert;
     }
+        
+    private static Vector3 TopFace(float x, float y)    { return centeredNormalizedPosition(x, 1f, y); }
+    private static Vector3 BottomFace(float x, float y) { return centeredNormalizedPosition(y, 0f, x); }
+    private static Vector3 RightFace(float x, float y)  { return centeredNormalizedPosition(1f, y, x); }
+    private static Vector3 LeftFace(float x, float y)   { return centeredNormalizedPosition(0f, x, y); }
+    private static Vector3 FrontFace(float x, float y)  { return centeredNormalizedPosition(x, y, 0f); }
+    private static Vector3 BackFace(float x, float y)   { return centeredNormalizedPosition(y, x, 1f); }
+
+    private static FaceParametrization[] CUBE_FACE_PARAMETRIZATIONS = new FaceParametrization[] {
+        TopFace, BottomFace, RightFace, LeftFace, FrontFace, BackFace
+    };
 }
