@@ -56,10 +56,14 @@ public class MeshGenerator {
     }
 
     public void Generate(VertexParametrization surfaceParam) {
+        float oneOverResXMinusOne = 1f / (resolutionX - 1f);
+        float oneOverResYMinusOne = 1f / (resolutionY - 1f);
+
         for (int y = 0; y < resolutionY; ++y) {
+            float normY = y * oneOverResYMinusOne;
+
             for (int x = 0; x < resolutionX; ++x) {
-                float normX = x / (resolutionX - 1f);
-                float normY = y / (resolutionY - 1f);
+                float normX = x * oneOverResXMinusOne;
 
                 Vertex vert = surfaceParam(normX, normY);
 

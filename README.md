@@ -16,6 +16,6 @@ Procedural generation of planets (or asteroids, etc.) using Unity.
 
 ![Initial working version](ScreenShots/25-02-2016.png)
 
-* Earth-like Planet (26/02/2016):
+* Earth-like Planet (27/02/2016):
 
-![Earth-like planet](ScreenShots/26-02-2016.png)
+![Earth-like planet](ScreenShots/27-02-2016.png)

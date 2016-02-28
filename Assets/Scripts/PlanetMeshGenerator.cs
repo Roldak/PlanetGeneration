@@ -1,14 +1,18 @@
 ﻿using UnityEngine;
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
 
-[RequireComponent(typeof(MeshFilter))]
-[RequireComponent(typeof(MeshRenderer))]
 public class PlanetMeshGenerator : MonoBehaviour {
+    public delegate Vector3 FaceParametrization(float x, float y);
+
     public float radius = 1f;
     public int X = 100;
     public int Y = 100;
+
+    public Material terrainMaterial;
+    public PhysicMaterial terrainPhysicMaterial;
 
     [Range(0, 1)]
     public float noiseMagnitude = 0.5f;
@@ -20,7 +24,10 @@ public class PlanetMeshGenerator : MonoBehaviour {
     public float lacunarity = 2f;
     public float persistance = 0.5f;
 
+    public bool generateColliders = true;
     public bool enableMultithreading = true;
+
+    private List<GameObject> childs = new List<GameObject>();
 
     // Use this for initialization
     void Start() {
@@ -33,86 +40,106 @@ public class PlanetMeshGenerator : MonoBehaviour {
     }
 
     public void Generate() {
-        // Mesh and Material
+        foreach (GameObject child in childs) {
+            DestroyImmediate(child);
+        }
+        childs.Clear();
+        childs.AddRange(GenerateFromFaceParametrizations(CUBE_FACE_PARAMETRIZATIONS, "part", 0));
+    }
 
-        Mesh mesh = new Mesh();
-        mesh.subMeshCount = 6;
+    public GameObject[] GenerateFromFaceParametrizations(FaceParametrization[] faceParametrization, string baseName, int lodLevel) {
+        int N = faceParametrization.GetLength(0);
+        MeshGenerator.VertexParametrization[] parametrizations = new MeshGenerator.VertexParametrization[N];
 
-        Vector3[] vertices = new Vector3[X * Y * 6];
-        Vector3[] normals = new Vector3[X * Y * 6];
-        Vector2[] uvs = new Vector2[X * Y * 6];
-
-        int[][] triangles = new int[6][];
-        Color[][] colors = new Color[6][];
-
-        for (int i = 0; i < 6; ++i) {
-            triangles[i] = new int[(X - 1) * (Y - 1) * 2 * 3];
-            colors[i] = new Color[X * Y];
+        for (int i = 0; i < N; i++) {
+            FaceParametrization face = faceParametrization[i];
+            parametrizations[i] = (float x, float y) => withNoise(face(x, y), x, y);
         }
 
-        MeshGenerator.VertexParametrization[] parametrizations = new MeshGenerator.VertexParametrization[6];
+        Vector3[][] vertices = new Vector3[N][];
+        Vector3[][] normals = new Vector3[N][];
+        Vector2[][] uvs = new Vector2[N][];
 
-        parametrizations[0] = (float x, float y) => withNoise(centeredNormalizedPosition(x, 1f, y), x, y);
-        parametrizations[1] = (float x, float y) => withNoise(centeredNormalizedPosition(y, 0f, x), x, y);
-        parametrizations[2] = (float x, float y) => withNoise(centeredNormalizedPosition(1f, y, x), x, y);
-        parametrizations[3] = (float x, float y) => withNoise(centeredNormalizedPosition(0f, x, y), x, y);
-        parametrizations[4] = (float x, float y) => withNoise(centeredNormalizedPosition(y, x, 1f), x, y);
-        parametrizations[5] = (float x, float y) => withNoise(centeredNormalizedPosition(x, y, 0f), x, y);
+        int[][] triangles = new int[N][];
+        Color[][] colors = new Color[N][];
 
         Action<int> generateFace = (int i) => {
+            triangles[i] = new int[(X - 1) * (Y - 1) * 2 * 3];
+            colors[i] = new Color[X * Y];
+            vertices[i] = new Vector3[X * Y];
+            normals[i] = new Vector3[X * Y];
+            uvs[i] = new Vector2[X * Y];
+
             MeshGenerator gen = new MeshGenerator();
             gen.setParameters(X, Y, true, false);
-            gen.setVerticesOutputArrays(vertices, normals, uvs, i * X * Y);
+            gen.setVerticesOutputArrays(vertices[i], normals[i], uvs[i], 0);
             gen.setIndicesOutputArray(triangles[i], 0);
             gen.setColorsOutputArray(colors[i], 0);
             gen.Generate(parametrizations[i]);
         };
 
-        Stopwatch watch = Stopwatch.StartNew();
         if (enableMultithreading) {
-            Parallel.For(0, 6, 1, generateFace);
+            Parallel.For(0, N, 1, generateFace);
         } else {
-            for (int i = 0; i < 6; ++i) {
+            for (int i = 0; i < N; ++i) {
                 generateFace(i);
             }
         }
-        UnityEngine.Debug.Log(watch.Elapsed.TotalSeconds);
 
-        mesh.vertices = vertices;
-        mesh.uv = uvs;
-        for (int i = 0; i < 6; ++i) {
-            mesh.SetTriangles(triangles[i], i);
-        }
-        mesh.Optimize();
-        mesh.RecalculateBounds();
-        mesh.normals = normals;
-        //mesh.RecalculateNormals();
+        GameObject[] objects = new GameObject[N];
 
-        GetComponent<MeshFilter>().sharedMesh = mesh;
+        Stopwatch watch = Stopwatch.StartNew();
+        for (int i = 0; i < N; i++) {
+            GameObject child = new GameObject(baseName + i);
+            child.transform.parent = transform;
 
-        // Materials
+            // MESH
 
-        Material[] mat = new Material[6];
-        for (int i = 0; i < 6; ++i) {
+            Mesh mesh = new Mesh();
+
+            mesh.vertices = vertices[i];
+            mesh.triangles = triangles[i];
+            mesh.normals = normals[i];
+            mesh.uv = uvs[i];
+            mesh.Optimize();
+            mesh.RecalculateBounds();
+
+            MeshFilter mf = child.AddComponent<MeshFilter>();
+            mf.sharedMesh = mesh;
+
+            // MATERIAL
+
             Texture2D tex = new Texture2D(X, Y);
             tex.SetPixels(colors[i]);
             tex.filterMode = FilterMode.Trilinear;
             tex.wrapMode = TextureWrapMode.Clamp;
             tex.Apply();
 
-            mat[i] = new Material(GetComponent<Renderer>().sharedMaterial);
-            mat[i].mainTexture = tex;
+            Renderer r = child.AddComponent<MeshRenderer>();
+            r.sharedMaterial = new Material(terrainMaterial);
+            r.sharedMaterial.mainTexture = tex;
+
+            // COLLIDER
+
+            if (generateColliders) {
+                MeshCollider col = child.AddComponent<MeshCollider>();
+                col.sharedMesh = null;
+                col.sharedMesh = mesh;
+                col.sharedMaterial = terrainPhysicMaterial;
+            }
+
+            // PLANET MESH SPLITTER
+
+            PlanetMeshSplitter splitter = child.AddComponent<PlanetMeshSplitter>();
+            splitter.planetGenerator = this;
+            splitter.faceParametrization = faceParametrization[i];
+            splitter.level = lodLevel;
+
+            objects[i] = child;
         }
 
-        GetComponent<Renderer>().sharedMaterials = mat;
-
-        // Collider
-
-        MeshCollider collider = GetComponent<MeshCollider>();
-        if (collider) {
-            collider.sharedMesh = null;
-            collider.sharedMesh = mesh;
-        }
+        UnityEngine.Debug.Log(watch.Elapsed.TotalSeconds);
+        return objects;
     }
 
     private static Vector3 centeredNormalizedPosition(float x, float y, float z) {
@@ -122,22 +149,36 @@ public class PlanetMeshGenerator : MonoBehaviour {
     private static readonly float SEA_LEVEL = -0.1f;
     private static readonly Color SAND_COLOR = Color.HSVToRGB(0.13f, 0.61f, 0.79f);
     private static readonly Color LAND_COLOR = new Color(0.651f, 0.40f, 0.314f);
-    private static readonly float SAND_THRESHOLD = 0f;
+    private static readonly float SAND_THRESHOLD = 0.1f;
 
     private MeshGenerator.Vertex withNoise(Vector3 vertexPos, float x, float y) {
         float sample = FBMNoise.valueAt(vertexPos / noiseScale + noiseOffset, octaves, lacunarity, persistance);
 
         MeshGenerator.Vertex vert;
         vert.position = radius * vertexPos * (1 + sample * noiseMagnitude);
+
         vert.uv = new Vector2(x, y);
-        vert.color = Color.Lerp(Color.black, Color.white, sample * 2f + 0.5f) * LAND_COLOR;
+
+        vert.color = Color.Lerp(Color.black, Color.white, sample / noiseMagnitude) * LAND_COLOR;
         if (sample < SEA_LEVEL) {
             vert.color = SAND_COLOR;
         } else if (sample < SAND_THRESHOLD) {
             vert.color = Color.Lerp(SAND_COLOR, vert.color, Mathf.InverseLerp(SEA_LEVEL, SAND_THRESHOLD, sample));
         }
-        vert.normal = Vector3.zero; // anything
+
+        vert.normal = Vector3.zero;
 
         return vert;
     }
+
+    private static Vector3 TopFace(float x, float y)    { return centeredNormalizedPosition(x, 1f, y); }
+    private static Vector3 BottomFace(float x, float y) { return centeredNormalizedPosition(y, 0f, x); }
+    private static Vector3 RightFace(float x, float y)  { return centeredNormalizedPosition(1f, y, x); }
+    private static Vector3 LeftFace(float x, float y)   { return centeredNormalizedPosition(0f, x, y); }
+    private static Vector3 FrontFace(float x, float y)  { return centeredNormalizedPosition(x, y, 0f); }
+    private static Vector3 BackFace(float x, float y)   { return centeredNormalizedPosition(y, x, 1f); }
+
+    private static FaceParametrization[] CUBE_FACE_PARAMETRIZATIONS = new FaceParametrization[] {
+        TopFace, BottomFace, RightFace, LeftFace, FrontFace, BackFace
+    };
 }
