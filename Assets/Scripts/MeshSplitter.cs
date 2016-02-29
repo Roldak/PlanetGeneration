@@ -2,38 +2,46 @@
 using System.Collections;
 using System.Threading;
 
-[RequireComponent (typeof(Renderer))]
-public class PlanetMeshSplitter : MonoBehaviour {
+[RequireComponent(typeof(Renderer))]
+public class MeshSplitter : MonoBehaviour {
     public static readonly float REPEAT_RATE = 0.3f;
 
-    public PlanetMeshGenerator planetGenerator;
-    public PlanetMeshGenerator.SurfaceParametrization faceParametrization;
+    public MeshGenerator meshGenerator;
+    public SurfaceGenerator.SurfaceParametrization faceParametrization;
     public int level = 0;
 
-    public bool CanSplit { get { return gameObject.activeSelf;  } }
+    public bool CanSplit { get { return gameObject.activeSelf; } }
 
     new private Renderer renderer;
-    private GameObject[] childs;
+    private GameObject[] childs = null;
     private bool busy = false;
 
-    private PlanetMeshGenerator.SurfaceParametrization[] faceParametrizations;
-    private PlanetMeshGenerator.SurfaceObjectCreator[] objectCreators = null;
+    private SurfaceGenerator.SurfaceParametrization[] childrenFaceParametrizations;
+    private SurfaceObjectCreator[] objectCreators = null;
     private Thread objectCreatorsThread = null;
 
     void Start() {
-        faceParametrizations = new PlanetMeshGenerator.SurfaceParametrization[4];
-        faceParametrizations[0] = (float x, float y) => faceParametrization(x * 0.5f, y * 0.5f);
-        faceParametrizations[1] = (float x, float y) => faceParametrization(x * 0.5f + 0.5f, y * 0.5f);
-        faceParametrizations[2] = (float x, float y) => faceParametrization(x * 0.5f, y * 0.5f + 0.5f);
-        faceParametrizations[3] = (float x, float y) => faceParametrization(x * 0.5f + 0.5f, y * 0.5f + 0.5f);
+        childrenFaceParametrizations = new SurfaceGenerator.SurfaceParametrization[4];
+        childrenFaceParametrizations[0] = (float x, float y) => faceParametrization(x * 0.5f, y * 0.5f);
+        childrenFaceParametrizations[1] = (float x, float y) => faceParametrization(x * 0.5f + 0.5f, y * 0.5f);
+        childrenFaceParametrizations[2] = (float x, float y) => faceParametrization(x * 0.5f, y * 0.5f + 0.5f);
+        childrenFaceParametrizations[3] = (float x, float y) => faceParametrization(x * 0.5f + 0.5f, y * 0.5f + 0.5f);
     }
 
-    void Awake () {
+    void Awake() {
         renderer = GetComponent<Renderer>();
         InvokeRepeating("CheckCanSplitOrMerge", REPEAT_RATE, REPEAT_RATE);
-	}
-	
-	void CheckCanSplitOrMerge() {
+    }
+
+    void OnDestroy() {
+        if (childs != null) {
+            foreach (GameObject child in childs) {
+                Destroy(child);
+            }
+        }
+    }
+
+    void CheckCanSplitOrMerge() {
         if (busy) {
             return;
         }
@@ -67,7 +75,7 @@ public class PlanetMeshSplitter : MonoBehaviour {
                 Debug.Log(name + " is merging");
             }
         }
-	}
+    }
 
     private void prepareSplit() {
         if (objectCreators != null) {
@@ -75,7 +83,7 @@ public class PlanetMeshSplitter : MonoBehaviour {
         }
 
         objectCreatorsThread = new Thread(() => {
-            objectCreators = planetGenerator.GenerateMeshDataFromSurfaceParametrizations(faceParametrizations);
+            objectCreators = meshGenerator.GenerateMeshDataFromSurfaceParametrizations(childrenFaceParametrizations);
         });
 
         objectCreatorsThread.Start();
@@ -90,7 +98,7 @@ public class PlanetMeshSplitter : MonoBehaviour {
         yield return null;
 
         for (int i = 0; i < 4; i++) {
-            objectCreators[i].CreateObject(name + i);
+            objectCreators[i].CreateObject(name + i, transform.parent);
             objectCreators[i].CreateMesh();
 
             yield return null;
@@ -101,7 +109,7 @@ public class PlanetMeshSplitter : MonoBehaviour {
             yield return null;
 
             objectCreators[i].AssignCollider();
-            objectCreators[i].AssignMeshSplitter(level + 1);
+            objectCreators[i].AssignMeshSplitter(level + 1, childrenFaceParametrizations[i]);
 
             childs[i] = objectCreators[i].getObject();
 
@@ -117,10 +125,11 @@ public class PlanetMeshSplitter : MonoBehaviour {
         busy = true;
 
         gameObject.SetActive(true);
-        
+
         foreach (GameObject obj in childs) {
             Destroy(obj);
         }
+        childs = null;
 
         busy = false;
     }

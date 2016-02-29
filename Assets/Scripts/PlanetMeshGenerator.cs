@@ -4,86 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 
-public class PlanetMeshGenerator : MonoBehaviour {
-    public delegate Vector3 SurfaceParametrization(float x, float y);
-
-    public struct SurfaceMeshData {
-        public Vector3[] vertices;
-        public Vector3[] normals;
-        public Vector2[] uvs;
-        public int[] triangles;
-
-        public Color[] colors;
-        public SurfaceParametrization parametrization;
-    }
-
-    public class SurfaceObjectCreator {
-        private GameObject obj;
-        private SurfaceMeshData data;
-
-        private PlanetMeshGenerator gen;
-        private Mesh mesh;
-
-        public SurfaceObjectCreator(SurfaceMeshData data, PlanetMeshGenerator gen) {
-            this.data = data;
-            this.gen = gen;
-        }
-
-        public void CreateObject(string name) {
-            obj = new GameObject(name);
-            obj.transform.parent = gen.transform;
-            gen.childs.Add(obj);
-        }
-
-        public void CreateMesh() {
-            mesh = new Mesh();
-
-            mesh.vertices = data.vertices;
-            mesh.triangles = data.triangles;
-            mesh.normals = data.normals;
-            mesh.uv = data.uvs;
-            mesh.Optimize();
-            mesh.RecalculateBounds();
-        }
-
-        public void AssignMesh() {
-            MeshFilter mf = obj.AddComponent<MeshFilter>();
-            mf.sharedMesh = mesh;
-        }
-
-        public void AssignMaterial() {
-            Texture2D tex = new Texture2D(gen.X, gen.Y);
-            tex.SetPixels(data.colors);
-            tex.filterMode = FilterMode.Trilinear;
-            tex.wrapMode = TextureWrapMode.Clamp;
-            tex.Apply();
-
-            Renderer r = obj.AddComponent<MeshRenderer>();
-            r.sharedMaterial = new Material(gen.terrainMaterial);
-            r.sharedMaterial.mainTexture = tex;
-        }
-
-        public void AssignCollider() {
-            if (gen.generateColliders) {
-                MeshCollider col = obj.AddComponent<MeshCollider>();
-                col.sharedMesh = null;
-                col.sharedMesh = mesh;
-                col.sharedMaterial = gen.terrainPhysicMaterial;
-            }
-        }
-
-        public void AssignMeshSplitter(int lodLevel) {
-            PlanetMeshSplitter splitter = obj.AddComponent<PlanetMeshSplitter>();
-            splitter.planetGenerator = gen;
-            splitter.faceParametrization = data.parametrization;
-            splitter.level = lodLevel;
-        }
-
-        public GameObject getObject() {
-            return obj;
-        }
-    }
-
+public class PlanetMeshGenerator : MonoBehaviour, MeshGenerator {
     public float radius = 1f;
     public int X = 100;
     public int Y = 100;
@@ -126,43 +47,48 @@ public class PlanetMeshGenerator : MonoBehaviour {
         Stopwatch watch = Stopwatch.StartNew();
         int i = 0;
         foreach (SurfaceObjectCreator surface in surfaces) {
-            surface.CreateObject("part" + (i++));
+            surface.CreateObject("part" + i, transform);
             surface.CreateMesh();
             surface.AssignMesh();
             surface.AssignMaterial();
             surface.AssignCollider();
-            surface.AssignMeshSplitter(0);
+            surface.AssignMeshSplitter(0, CUBE_SURFACE_PARAMETRIZATIONS[i]);
+            
+            childs.Add(surface.getObject());
+
+            ++i;
         }
         UnityEngine.Debug.Log(watch.Elapsed.TotalSeconds);
     }
 
-    public SurfaceObjectCreator[] GenerateMeshDataFromSurfaceParametrizations(SurfaceParametrization[] faceParametrization) {
+    public Material defaultRendererMaterial() {
+        return terrainMaterial;
+    }
+
+    public PhysicMaterial defaultPhysicMaterial() {
+        return terrainPhysicMaterial;
+    }
+
+    public bool shouldGenerateColliders() {
+        return generateColliders;
+    }
+
+    public virtual SurfaceObjectCreator[] GenerateMeshDataFromSurfaceParametrizations(SurfaceGenerator.SurfaceParametrization[] faceParametrization) {
         int N = faceParametrization.GetLength(0);
 
         SurfaceObjectCreator[] objectCreators = new SurfaceObjectCreator[N];
 
-        SurfaceMeshData[] meshdata = new SurfaceMeshData[N];
-        MeshGenerator.VertexParametrization[] parametrizations = new MeshGenerator.VertexParametrization[N];
-
-        for (int i = 0; i < N; i++) {
-            SurfaceParametrization face = faceParametrization[i];
-            meshdata[i].parametrization = face;
-            parametrizations[i] = (float x, float y) => withNoise(face(x, y), x, y);
-        }
-
         Action<int> generateFace = (int i) => {
-            meshdata[i].triangles = new int[(X - 1) * (Y - 1) * 2 * 3];
-            meshdata[i].colors = new Color[X * Y];
-            meshdata[i].vertices = new Vector3[X * Y];
-            meshdata[i].normals = new Vector3[X * Y];
-            meshdata[i].uvs = new Vector2[X * Y];
+            SurfaceGenerator gen = new SurfaceGenerator();
+            SurfaceGenerator.SurfaceParametrization face = faceParametrization[i];
 
-            MeshGenerator gen = new MeshGenerator();
             gen.setParameters(X, Y, true, false);
-            gen.setVerticesOutputArrays(meshdata[i].vertices, meshdata[i].normals, meshdata[i].uvs, 0);
-            gen.setIndicesOutputArray(meshdata[i].triangles, 0);
-            gen.setColorsOutputArray(meshdata[i].colors, 0);
-            gen.Generate(parametrizations[i]);
+            gen.setVerticesOutputArrays(new Vector3[X * Y], new Vector3[X * Y], new Vector2[X * Y], 0);
+            gen.setIndicesOutputArray(new int[(X - 1) * (Y - 1) * 2 * 3], 0);
+            gen.setColorsOutputArray(new Color[X * Y], 0);
+            gen.Generate((float x, float y) => withNoise(face(x, y), x, y));
+
+            objectCreators[i] = new SurfaceObjectCreator(gen, this);
         };
 
         if (enableMultithreading) {
@@ -171,10 +97,6 @@ public class PlanetMeshGenerator : MonoBehaviour {
             for (int i = 0; i < N; ++i) {
                 generateFace(i);
             }
-        }
-
-        for (int i = 0; i < N; i++) {
-            objectCreators[i] = new SurfaceObjectCreator(meshdata[i], this);
         }
         
         return objectCreators;
@@ -189,10 +111,10 @@ public class PlanetMeshGenerator : MonoBehaviour {
     private static readonly Color LAND_COLOR = new Color(0.651f, 0.40f, 0.314f);
     private static readonly float SAND_THRESHOLD = 0.1f;
 
-    private MeshGenerator.Vertex withNoise(Vector3 vertexPos, float x, float y) {
+    private SurfaceGenerator.Vertex withNoise(Vector3 vertexPos, float x, float y) {
         float sample = FBMNoise.valueAt(vertexPos / noiseScale + noiseOffset, octaves, lacunarity, persistance);
 
-        MeshGenerator.Vertex vert;
+        SurfaceGenerator.Vertex vert;
         vert.position = radius * vertexPos * (1 + sample * noiseMagnitude);
 
         vert.uv = new Vector2(x, y);
@@ -216,7 +138,7 @@ public class PlanetMeshGenerator : MonoBehaviour {
     private static Vector3 FrontFace(float x, float y)  { return centeredNormalizedPosition(x, y, 0f); }
     private static Vector3 BackFace(float x, float y)   { return centeredNormalizedPosition(y, x, 1f); }
 
-    private static SurfaceParametrization[] CUBE_SURFACE_PARAMETRIZATIONS = new SurfaceParametrization[] {
+    private static SurfaceGenerator.SurfaceParametrization[] CUBE_SURFACE_PARAMETRIZATIONS = new SurfaceGenerator.SurfaceParametrization[] {
         TopFace, BottomFace, RightFace, LeftFace, FrontFace, BackFace
     };
 }

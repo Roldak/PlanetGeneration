@@ -2,8 +2,9 @@
 using System;
 using System.Collections;
 
-public class MeshGenerator {
+public class SurfaceGenerator {
 
+    public delegate Vector3 SurfaceParametrization(float x, float y);
     public delegate Vertex VertexParametrization(float x, float y);
 
     public struct Vertex {
@@ -55,7 +56,7 @@ public class MeshGenerator {
         this.indexOffset = indexOffset;
     }
 
-    public void Generate(VertexParametrization surfaceParam) {
+    public void Generate(VertexParametrization surfaceVertexParam) {
         float oneOverResXMinusOne = 1f / (resolutionX - 1f);
         float oneOverResYMinusOne = 1f / (resolutionY - 1f);
 
@@ -65,7 +66,7 @@ public class MeshGenerator {
             for (int x = 0; x < resolutionX; ++x) {
                 float normX = x * oneOverResXMinusOne;
 
-                Vertex vert = surfaceParam(normX, normY);
+                Vertex vert = surfaceVertexParam(normX, normY);
 
                 if (vertices != null) {
                     vertices[vertexOffset] = vert.position;
@@ -74,8 +75,8 @@ public class MeshGenerator {
                 if (normals != null) {
                     if (autoGenerateNormalsArray) {
                         normals[vertexOffset] = Vector3.Cross(
-                            computeSurfaceYDerivative(surfaceParam, normX, normY, vert.position, derivativeResolution),
-                            computeSurfaceXDerivative(surfaceParam, normX, normY, vert.position, derivativeResolution)
+                            computeSurfaceYDerivative(surfaceVertexParam, normX, normY, vert.position, derivativeResolution),
+                            computeSurfaceXDerivative(surfaceVertexParam, normX, normY, vert.position, derivativeResolution)
                         ).normalized;
                     } else {
                         normals[vertexOffset] = vert.normal;
