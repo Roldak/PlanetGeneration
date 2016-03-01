@@ -8,7 +8,7 @@ Procedural generation of planets (or asteroids, etc.) using Unity.
 * Procedural sphere generation from cube normalization for trivial UV mapping
 * Vertex displacement using the 3D fBm
 * Numerical computation of vertex position's derivates to compute vertex normals
-* Multithreaded generation
+* Multithreaded mesh generation with dynamic LOD using quadtrees
 
 ## Screenshots:
 
@@ -19,3 +19,7 @@ Procedural generation of planets (or asteroids, etc.) using Unity.
 * Earth-like Planet (27/02/2016):
 
 ![Earth-like planet](ScreenShots/27-02-2016.png)
+
+* First-person view (29/02/2016):
+
+![First-person view](ScreenShots/29-02-2016.png)

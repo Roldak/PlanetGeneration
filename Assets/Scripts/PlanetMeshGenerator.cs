@@ -42,7 +42,7 @@ public class PlanetMeshGenerator : MonoBehaviour, MeshGenerator {
             DestroyImmediate(child);
         }
         childs.Clear();
-        SurfaceObjectCreator[] surfaces = GenerateMeshDataFromSurfaceParametrizations(CUBE_SURFACE_PARAMETRIZATIONS);
+        SurfaceObjectCreator[] surfaces = GenerateMeshDataFromSurfaceParametrizations(Utils.SPHERE_SURFACE_PARAMETRIZATIONS);
 
         Stopwatch watch = Stopwatch.StartNew();
         int i = 0;
@@ -52,7 +52,7 @@ public class PlanetMeshGenerator : MonoBehaviour, MeshGenerator {
             surface.AssignMesh();
             surface.AssignMaterial();
             surface.AssignCollider();
-            surface.AssignMeshSplitter(0, CUBE_SURFACE_PARAMETRIZATIONS[i]);
+            surface.AssignMeshSplitter(0, Utils.SPHERE_SURFACE_PARAMETRIZATIONS[i]);
             
             childs.Add(surface.getObject());
 
@@ -102,10 +102,6 @@ public class PlanetMeshGenerator : MonoBehaviour, MeshGenerator {
         return objectCreators;
     }
 
-    private static Vector3 centeredNormalizedPosition(float x, float y, float z) {
-        return new Vector3(x * 2f - 1f, y * 2f - 1f, z * 2f - 1f).normalized;
-    }
-
     private static readonly float SEA_LEVEL = -0.1f;
     private static readonly Color SAND_COLOR = Color.HSVToRGB(0.13f, 0.61f, 0.79f);
     private static readonly Color LAND_COLOR = new Color(0.651f, 0.40f, 0.314f);
@@ -131,14 +127,4 @@ public class PlanetMeshGenerator : MonoBehaviour, MeshGenerator {
         return vert;
     }
 
-    private static Vector3 TopFace(float x, float y)    { return centeredNormalizedPosition(x, 1f, y); }
-    private static Vector3 BottomFace(float x, float y) { return centeredNormalizedPosition(y, 0f, x); }
-    private static Vector3 RightFace(float x, float y)  { return centeredNormalizedPosition(1f, y, x); }
-    private static Vector3 LeftFace(float x, float y)   { return centeredNormalizedPosition(0f, x, y); }
-    private static Vector3 FrontFace(float x, float y)  { return centeredNormalizedPosition(x, y, 0f); }
-    private static Vector3 BackFace(float x, float y)   { return centeredNormalizedPosition(y, x, 1f); }
-
-    private static SurfaceGenerator.SurfaceParametrization[] CUBE_SURFACE_PARAMETRIZATIONS = new SurfaceGenerator.SurfaceParametrization[] {
-        TopFace, BottomFace, RightFace, LeftFace, FrontFace, BackFace
-    };
 }
