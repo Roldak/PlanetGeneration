@@ -53,12 +53,12 @@ public class MeshSplitter : MonoBehaviour {
                 foreach (MeshSplitTriggerer.TriggererInfo levelInfo in triggerer.levels) {
                     if (levelInfo.triggerRadius * levelInfo.triggerRadius * 2 > dist2 && levelInfo.triggerLevel > level) {
                         prepareSplit();
-                        Debug.Log(name + " is preparing to split");
+                        //Debug.Log(name + " is preparing to split");
                     }
 
                     if (levelInfo.triggerRadius * levelInfo.triggerRadius > dist2 && levelInfo.triggerLevel > level) {
                         StartCoroutine(split());
-                        Debug.Log(name + " is splitting");
+                        //Debug.Log(name + " is splitting");
                     }
                 }
             }
@@ -72,7 +72,7 @@ public class MeshSplitter : MonoBehaviour {
                     }
                 }
                 merge();
-                Debug.Log(name + " is merging");
+                //Debug.Log(name + " is merging");
             }
         }
     }
