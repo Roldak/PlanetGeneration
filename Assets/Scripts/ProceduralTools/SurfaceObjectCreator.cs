@@ -26,6 +26,7 @@ public class SurfaceObjectCreator {
         mesh.uv = data.uvs;
         mesh.Optimize();
         mesh.RecalculateBounds();
+        //mesh.RecalculateNormals();
     }
 
     public void AssignMesh() {
