@@ -7,6 +7,7 @@ Procedural generation of planets (or asteroids, etc.) using Unity.
 * Vertex displacement using the 3D fBm
 * Numerical computation of vertex position's derivates to compute vertex normals
 * Multithreaded mesh generation with dynamic LOD using quadtrees
+* GPU-based planet texturing using Unity's surface shaders
 
 ## Screenshots:
 
@@ -21,3 +22,11 @@ Procedural generation of planets (or asteroids, etc.) using Unity.
 * First-person view (29/02/2016):
 
 ![First-person view](ScreenShots/29-02-2016.png)
+
+* Realistic textures (03/03/2016):
+
+![Realistic textures](ScreenShots/03-03-2016.png)
+
+* Aerial view (03/03/2016):
+
+![Aerial view](ScreenShots/03-03-2016-2.png)

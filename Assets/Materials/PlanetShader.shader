@@ -22,6 +22,7 @@
 			float2 uv_Sand;
 			float2 uv_Grass;
 			float2 uv_Rock;
+			float2 uv_Snow;
 			float3 localPos;
 			float3 localNormal;
 		};
@@ -79,9 +80,9 @@
 
 		float3 normalAlbedo_level3(Input IN, float slope) {
 			if (slope <= LEVEL3_STEP1_MAX_SLOPE) {
-				return tex2D(_Snow, IN.uv_Grass).rgb;
+				return tex2D(_Snow, IN.uv_Snow).rgb;
 			} else if (slope <= LEVEL3_STEP2_MIN_SLOPE) {
-				return lerp(tex2D(_Snow, IN.uv_Grass).rgb, tex2D(_Rock, IN.uv_Rock).rgb, (slope - LEVEL3_STEP1_MAX_SLOPE) * LEVEL3_STEP1_2_TRANS_FACTOR);
+				return lerp(tex2D(_Snow, IN.uv_Snow).rgb, tex2D(_Rock, IN.uv_Rock).rgb, (slope - LEVEL3_STEP1_MAX_SLOPE) * LEVEL3_STEP1_2_TRANS_FACTOR);
 			} else {
 				return tex2D(_Rock, IN.uv_Rock).rgb;
 			}
