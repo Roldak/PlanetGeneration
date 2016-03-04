@@ -35,15 +35,18 @@ public class SurfaceObjectCreator {
     }
 
     public void AssignMaterial() {
-        Texture2D tex = new Texture2D(data.resolutionX, data.resolutionY);
-        tex.SetPixels(data.colors);
-        tex.filterMode = FilterMode.Trilinear;
-        tex.wrapMode = TextureWrapMode.Clamp;
-        tex.Apply();
-
         Renderer r = obj.AddComponent<MeshRenderer>();
         r.sharedMaterial = new Material(gen.defaultRendererMaterial());
-        r.sharedMaterial.mainTexture = tex;
+
+        if (data.colors != null) {
+            Texture2D tex = new Texture2D(data.resolutionX, data.resolutionY);
+            tex.SetPixels(data.colors);
+            tex.filterMode = FilterMode.Trilinear;
+            tex.wrapMode = TextureWrapMode.Clamp;
+            tex.Apply();
+
+            r.sharedMaterial.mainTexture = tex;
+        }
     }
 
     public void AssignCollider() {

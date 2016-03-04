@@ -85,7 +85,6 @@ public class PlanetMeshGenerator : MonoBehaviour, MeshGenerator {
             gen.setParameters(X, Y, true, false);
             gen.setVerticesOutputArrays(new Vector3[X * Y], new Vector3[X * Y], new Vector2[X * Y], 0);
             gen.setIndicesOutputArray(new int[(X - 1) * (Y - 1) * 2 * 3], 0);
-            gen.setColorsOutputArray(new Color[X * Y], 0);
             gen.Generate((float x, float y) => withNoise(face(x, y), x, y));
 
             objectCreators[i] = new SurfaceObjectCreator(gen, this);
@@ -111,17 +110,10 @@ public class PlanetMeshGenerator : MonoBehaviour, MeshGenerator {
         float sample = FBMNoise.valueAt(vertexPos / noiseScale + noiseOffset, octaves, lacunarity, persistance);
 
         SurfaceGenerator.Vertex vert;
+
         vert.position = radius * vertexPos * (1 + sample * noiseMagnitude);
-
         vert.uv = new Vector2(x, y);
-
-        vert.color = Color.Lerp(Color.black, Color.white, sample / noiseMagnitude) * LAND_COLOR;
-        if (sample < SEA_LEVEL) {
-            vert.color = SAND_COLOR;
-        } else if (sample < SAND_THRESHOLD) {
-            vert.color = Color.Lerp(SAND_COLOR, vert.color, Mathf.InverseLerp(SEA_LEVEL, SAND_THRESHOLD, sample));
-        }
-
+        vert.color = Color.white;
         vert.normal = Vector3.zero;
 
         return vert;
