@@ -58,6 +58,7 @@ public class MeshSplitter : MonoBehaviour {
 
                     if (levelInfo.triggerRadius * levelInfo.triggerRadius > dist2 && levelInfo.triggerLevel > level) {
                         StartCoroutine(split());
+                        return;
                         //Debug.Log(name + " is splitting");
                     }
                 }
@@ -71,14 +72,14 @@ public class MeshSplitter : MonoBehaviour {
                         return;
                     }
                 }
-                merge();
-                //Debug.Log(name + " is merging");
             }
+            merge();
+            //Debug.Log(name + " is merging");
         }
     }
 
     private void prepareSplit() {
-        if (objectCreators != null) {
+        if (objectCreators != null || objectCreatorsThread != null) {
             return;
         }
 
