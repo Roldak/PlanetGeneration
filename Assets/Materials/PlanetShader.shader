@@ -47,8 +47,8 @@
 		sampler2D _Rock;
 		sampler2D _Snow;
 
-		half _Radius;
-		half _NoiseFactor;
+		float _Radius;
+		float _NoiseFactor;
 
 		static const float LEVEL1_2_TRANS_FACTOR = 1.0 / (LEVEL2_MIN_HEIGHT - LEVEL1_MAX_HEIGHT);
 		static const float LEVEL2_3_TRANS_FACTOR = 1.0 / (LEVEL3_MIN_HEIGHT - LEVEL2_MAX_HEIGHT);
@@ -64,52 +64,60 @@
 			o.localNormal = v.normal.xyz;
 		}
 
-		float3 normalAlbedo_level1(Input IN, float slope) {
-			return tex2D(_Sand, IN.uv_Sand).rgb; // if we're low enough, return sand independently of the slope
+		float4 normalAlbedo_level1(Input IN, float slope) {
+			return tex2D(_Sand, IN.uv_Sand); // if we're low enough, return sand independently of the slope
 		}
-
+		
 		float3 normalAlbedo_level2(Input IN, float slope) {
-			if (slope <= LEVEL2_STEP1_MAX_SLOPE) {
-				return tex2D(_Grass, IN.uv_Grass).rgb;
-			} else if (slope <= LEVEL2_STEP2_MIN_SLOPE) {
-				return lerp(tex2D(_Grass, IN.uv_Grass).rgb, tex2D(_Rock, IN.uv_Rock).rgb, (slope - LEVEL2_STEP1_MAX_SLOPE) * LEVEL2_STEP1_2_TRANS_FACTOR);
+			float3 step1 = tex2D(_Grass, IN.uv_Grass).rgb;
+			float3 step2 = tex2D(_Rock, IN.uv_Rock).rgb;
+
+			if (slope < LEVEL2_STEP1_MAX_SLOPE) {
+				return step1;
+			} else if (slope < LEVEL2_STEP2_MIN_SLOPE) {
+				return lerp(step1, step2, (slope - LEVEL2_STEP1_MAX_SLOPE) * LEVEL2_STEP1_2_TRANS_FACTOR);
 			} else {
-				return tex2D(_Rock, IN.uv_Rock).rgb;
+				return step2;
 			}
 		}
 
 		float3 normalAlbedo_level3(Input IN, float slope) {
-			if (slope <= LEVEL3_STEP1_MAX_SLOPE) {
-				return tex2D(_Snow, IN.uv_Snow).rgb;
-			} else if (slope <= LEVEL3_STEP2_MIN_SLOPE) {
-				return lerp(tex2D(_Snow, IN.uv_Snow).rgb, tex2D(_Rock, IN.uv_Rock).rgb, (slope - LEVEL3_STEP1_MAX_SLOPE) * LEVEL3_STEP1_2_TRANS_FACTOR);
+			float3 step1 = tex2D(_Snow, IN.uv_Snow).rgb;
+			float3 step2 = tex2D(_Rock, IN.uv_Rock).rgb;
+
+			if (slope < LEVEL3_STEP1_MAX_SLOPE) {
+				return step1;
+			} else if (slope < LEVEL3_STEP2_MIN_SLOPE) {
+				return lerp(step1, step2, (slope - LEVEL3_STEP1_MAX_SLOPE) * LEVEL3_STEP1_2_TRANS_FACTOR);
 			} else {
-				return tex2D(_Rock, IN.uv_Rock).rgb;
+				return step2;
 			}
 		}
 
 		float3 levelAlbedo(Input IN, float height, float slope) {
-			if (height <= LEVEL1_MAX_HEIGHT) {
-				return normalAlbedo_level1(IN, slope);
-			} else if (height <= LEVEL2_MIN_HEIGHT) {
-				return lerp(normalAlbedo_level1(IN, slope), normalAlbedo_level2(IN, slope), (height - LEVEL1_MAX_HEIGHT) * LEVEL1_2_TRANS_FACTOR);
+			float3 level1 = normalAlbedo_level1(IN, slope).rgb;
+			float3 level2 = normalAlbedo_level2(IN, slope).rgb;
+			float3 level3 = normalAlbedo_level3(IN, slope).rgb;
+
+			if (height < LEVEL1_MAX_HEIGHT) {
+				return level1;
+			} else if (height < LEVEL2_MIN_HEIGHT) {
+				return lerp(level1, level2, (height - LEVEL1_MAX_HEIGHT) * LEVEL1_2_TRANS_FACTOR);
 			} else if (height <= LEVEL2_MAX_HEIGHT) {
-				return normalAlbedo_level2(IN, slope);
+				return level2;
 			} else if (height <= LEVEL3_MIN_HEIGHT) {
-				return lerp(normalAlbedo_level2(IN, slope), normalAlbedo_level3(IN, slope), (height - LEVEL2_MAX_HEIGHT) * LEVEL2_3_TRANS_FACTOR);
+				return lerp(level2, level3, (height - LEVEL2_MAX_HEIGHT) * LEVEL2_3_TRANS_FACTOR);
 			} else {
-				return normalAlbedo_level3(IN, slope);
+				return level3;
 			}
-			return 0.0;
 		}
 
 		void surf(Input IN, inout SurfaceOutputStandard o) {
 			float3 rDir = normalize(IN.localPos); 
 
-			float height = (dot(rDir, IN.localPos) - _Radius) / (_Radius * _NoiseFactor); // get height in range [-1, 1]
-			float slope = 1.0 - dot(rDir, IN.localNormal);
+			float height = (dot(rDir, IN.localPos) - _Radius) / (_Radius * _NoiseFactor); // get height relative to sea level in range [-1, 1]
+			float slope = 1.0 - dot(rDir, normalize(IN.localNormal));
 			
-			//o.Albedo.rgb = height <= LEVEL1_MAX_HEIGHT ? float3(1, 0, 0) : float3(0, 0, 1);//levelAlbedo(IN, height, slope);
 			o.Albedo.rgb = levelAlbedo(IN, height, slope);
 			o.Metallic = 0;
 			o.Smoothness = 1;
