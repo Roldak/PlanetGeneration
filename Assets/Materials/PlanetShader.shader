@@ -34,11 +34,11 @@
 		static const float LEVEL2_MAX_HEIGHT = 0.20;
 		static const float LEVEL3_MIN_HEIGHT = 0.25; // snow / rock
 
-		static const float LEVEL2_STEP1_MAX_SLOPE = 0.17; // grass
-		static const float LEVEL2_STEP2_MIN_SLOPE = 0.21; // rock
+		static const float LEVEL2_STEP1_MAX_SLOPE = 0.14; // grass
+		static const float LEVEL2_STEP2_MIN_SLOPE = 0.24; // rock
 
-		static const float LEVEL3_STEP1_MAX_SLOPE = 0.25; // snow
-		static const float LEVEL3_STEP2_MIN_SLOPE = 0.29; // rock
+		static const float LEVEL3_STEP1_MAX_SLOPE = 0.22; // snow
+		static const float LEVEL3_STEP2_MIN_SLOPE = 0.32; // rock
 
 		//////
 

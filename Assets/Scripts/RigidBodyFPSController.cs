@@ -2,6 +2,7 @@
 using System.Collections;
 
 [RequireComponent (typeof(Rigidbody))]
+[RequireComponent (typeof(GravitySensitive))]
 public class RigidBodyFPSController : MonoBehaviour {
     private static readonly float Epsilon = 0.00001f;
 
@@ -10,11 +11,9 @@ public class RigidBodyFPSController : MonoBehaviour {
     public float movingSpeed = 1f;
     public float jumpImpulse = 2f;
     public float mouseSensitivity = 2.0f;
+    public float maxHeightStickBackToGround = 0.1f;
 
     private Rigidbody rb;
-    private GravityProducer land = null;
-
-    private int landRefs = 0;
 
 	// Use this for initialization
 	void Start () {
@@ -23,30 +22,11 @@ public class RigidBodyFPSController : MonoBehaviour {
         Cursor.visible = false;
 	}
 
-    void OnTriggerEnter(Collider col) {
-        GravityProducer producer = col.GetComponentInParent<GravityProducer>();
-        if (producer) {
-            if (land && producer == land) {
-                ++landRefs;
-            } else {
-                land = producer;
-                landRefs = 1;
-            }
-        }
-    }
-
-    void OnTriggerExit(Collider col) {
-        if (land) {
-            if (col.GetComponentInParent<GravityProducer>() == land) {
-                if ((--landRefs) <= 0) {
-                    land = null;
-                }
-            }
-        }
+    void Update() {
+        handleCameraMovement();
     }
 
     void FixedUpdate() {
-        handleCameraMovement();
         handleBodyMovement();
         handleGravityForce();
     }
@@ -60,15 +40,20 @@ public class RigidBodyFPSController : MonoBehaviour {
     }
 
     private void handleBodyMovement() {
-        float verticalVelocity = Vector3.Dot(transform.InverseTransformVector(rb.velocity), Vector3.up);
-        
-        if (Mathf.Abs(verticalVelocity) < 0.1f && land != null) {
-            // stick to ground
-            /*RaycastHit hitinfo;
-            if (land.GetComponent<Collider>().Raycast(new Ray(transform.position, -transform.up), out hitinfo, 10f)) {
-                float dist = (hitinfo.point - transform.position).magnitude;
-                transform.position -= transform.up.normalized * (dist - bodyCollider.height * 0.5f);
-            }*/
+        Vector3 localVelocity = transform.InverseTransformVector(rb.velocity);
+        float verticalVelocity = Vector3.Dot(localVelocity, Vector3.up);
+
+        float sqrTotalVelocity = localVelocity.sqrMagnitude;
+        float sqrLimitVelocity = movingSpeed * movingSpeed * 2f;
+
+        if (sqrTotalVelocity < sqrLimitVelocity && Mathf.Abs(verticalVelocity) < 0.1f) {
+            // don't allow movement if there is no ground below us
+            if (!Physics.Raycast(
+                    new Ray(bodyCollider.transform.position, -bodyCollider.transform.up), 
+                    bodyCollider.height * 0.5f + maxHeightStickBackToGround)) {
+                return;
+            }
+
             rb.velocity = Vector3.zero;
             Vector3 dir = Vector3.zero;
 
@@ -95,15 +80,17 @@ public class RigidBodyFPSController : MonoBehaviour {
     }
 
     private void handleGravityForce() {
-        if (land) {
-            Vector3 newup = (transform.position - land.Center).normalized;
-
-            Vector3 axis;
-            float angleRad;
-
-            FromToAxisAngle(transform.up, newup, out axis, out angleRad);
-            transform.Rotate(axis, angleRad * Mathf.Rad2Deg, Space.World);
+        Vector3 acc = GetComponent<GravitySensitive>().Acceleration;
+        if (acc == Vector3.zero) {
+            return;
         }
+        Vector3 newup = (-acc).normalized;
+
+        Vector3 axis;
+        float angleRad;
+
+        FromToAxisAngle(transform.up, newup, out axis, out angleRad);
+        transform.Rotate(axis, angleRad * Mathf.Rad2Deg, Space.World);
     }
 
     private static void FromToAxisAngle(Vector3 a, Vector3 b, out Vector3 axis, out float angleRad) {
