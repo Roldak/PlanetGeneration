@@ -26,11 +26,9 @@ public class MeshSplitter : MonoBehaviour {
         childrenFaceParametrizations[1] = (float x, float y) => faceParametrization(x * 0.5f + 0.5f, y * 0.5f);
         childrenFaceParametrizations[2] = (float x, float y) => faceParametrization(x * 0.5f, y * 0.5f + 0.5f);
         childrenFaceParametrizations[3] = (float x, float y) => faceParametrization(x * 0.5f + 0.5f, y * 0.5f + 0.5f);
-    }
 
-    void Awake() {
         renderer = GetComponent<Renderer>();
-        InvokeRepeating("CheckCanSplitOrMerge", REPEAT_RATE, REPEAT_RATE);
+        restart();
     }
 
     void OnDestroy() {
@@ -40,7 +38,7 @@ public class MeshSplitter : MonoBehaviour {
             }
         }
     }
-
+    
     void CheckCanSplitOrMerge() {
         if (busy) {
             return;
@@ -93,28 +91,39 @@ public class MeshSplitter : MonoBehaviour {
     private IEnumerator split() {
         busy = true;
 
-        objectCreatorsThread.Join();
+        if (childs != null) {
+            foreach (GameObject child in childs) {
+                MeshSplitter ms = child.GetComponent<MeshSplitter>();
+                if (ms) {
+                    ms.restart();
+                }
+            }
+        } else {
+            objectCreatorsThread.Join();
 
-        childs = new GameObject[4];
-        yield return null;
-
-        for (int i = 0; i < 4; i++) {
-            objectCreators[i].CreateObject(name + i, transform.parent);
-            objectCreators[i].CreateMesh();
-
+            GameObject[] tmp = new GameObject[4];
             yield return null;
 
-            objectCreators[i].AssignMesh();
-            objectCreators[i].AssignMaterial();
+            for (int i = 0; i < 4; i++) {
+                objectCreators[i].CreateObject(name + i, transform.parent);
+                objectCreators[i].CreateMesh();
 
-            yield return null;
+                yield return null;
 
-            objectCreators[i].AssignCollider();
-            objectCreators[i].AssignMeshSplitter(level + 1, childrenFaceParametrizations[i]);
+                objectCreators[i].AssignMesh();
+                objectCreators[i].AssignMaterial();
 
-            childs[i] = objectCreators[i].getObject();
+                yield return null;
 
-            yield return null;
+                objectCreators[i].AssignCollider();
+                objectCreators[i].AssignMeshSplitter(level + 1, childrenFaceParametrizations[i]);
+
+                tmp[i] = objectCreators[i].getObject();
+
+                yield return null;
+            }
+
+            childs = tmp;
         }
 
         gameObject.SetActive(false);
@@ -126,12 +135,34 @@ public class MeshSplitter : MonoBehaviour {
         busy = true;
 
         gameObject.SetActive(true);
-
-        foreach (GameObject obj in childs) {
-            Destroy(obj);
+        
+        foreach (GameObject child in childs) {
+            MeshSplitter ms = child.GetComponent<MeshSplitter>();
+            if (ms) {
+                ms.disableRecursively();
+            }
         }
-        childs = null;
 
         busy = false;
+    }
+
+    private void disableRecursively() {
+        CancelInvoke();
+        gameObject.SetActive(false);
+        if (childs != null) {
+            foreach (GameObject child in childs) {
+                MeshSplitter ms = child.GetComponent<MeshSplitter>();
+                if (ms) {
+                    ms.disableRecursively();
+                }
+            }
+        }
+    }
+
+    private void restart() {
+        gameObject.SetActive(true);
+        busy = false;
+        CancelInvoke();
+        InvokeRepeating("CheckCanSplitOrMerge", REPEAT_RATE, REPEAT_RATE);
     }
 }

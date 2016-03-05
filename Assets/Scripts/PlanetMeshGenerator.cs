@@ -101,11 +101,6 @@ public class PlanetMeshGenerator : MonoBehaviour, MeshGenerator {
         return objectCreators;
     }
 
-    private static readonly float SEA_LEVEL = -0.1f;
-    private static readonly Color SAND_COLOR = Color.HSVToRGB(0.13f, 0.61f, 0.79f);
-    private static readonly Color LAND_COLOR = new Color(0.651f, 0.40f, 0.314f);
-    private static readonly float SAND_THRESHOLD = 0.1f;
-
     private SurfaceGenerator.Vertex withNoise(Vector3 vertexPos, float x, float y) {
         float sample = FBMNoise.valueAt(vertexPos / noiseScale + noiseOffset, octaves, lacunarity, persistance);
 
