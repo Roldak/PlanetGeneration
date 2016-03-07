@@ -15,6 +15,7 @@ public class SurfaceObjectCreator {
     public void CreateObject(string name, Transform parent) {
         obj = new GameObject(name);
         obj.transform.parent = parent;
+        obj.transform.localPosition = Vector3.zero;
     }
 
     public void CreateMesh() {
