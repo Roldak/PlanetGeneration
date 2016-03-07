@@ -10,6 +10,9 @@ public class WaterSphereGenerator : MonoBehaviour, MeshGenerator {
     public Material waterMaterial;
     public bool enableMultithreading = true;
 
+    [Range(0, 10)]
+    public int LODLevelToPrecompute = 3;
+
     void Start() {
         Generate();
     }
@@ -20,6 +23,10 @@ public class WaterSphereGenerator : MonoBehaviour, MeshGenerator {
 
     public Material defaultRendererMaterial() {
         return waterMaterial;
+    }
+
+    public int getLODLevelToPrecompute() {
+        return LODLevelToPrecompute;
     }
 
     public void Generate() {

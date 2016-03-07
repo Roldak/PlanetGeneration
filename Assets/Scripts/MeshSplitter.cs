@@ -29,6 +29,13 @@ public class MeshSplitter : MonoBehaviour {
 
         renderer = GetComponent<Renderer>();
         restart();
+
+        if (meshGenerator.getLODLevelToPrecompute() > level) {
+            // force creation of children but deactivate them directly
+            prepareSplit();
+            IEnumerator num = split();
+            while (num.MoveNext()) { }
+        }
     }
 
     void OnDestroy() {

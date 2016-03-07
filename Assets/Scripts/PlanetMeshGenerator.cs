@@ -25,6 +25,9 @@ public class PlanetMeshGenerator : MonoBehaviour, MeshGenerator {
     public bool generateColliders = true;
     public bool enableMultithreading = true;
 
+    [Range(0, 10)]
+    public int LODLevelToPrecompute = 0;
+
     protected List<GameObject> childs = new List<GameObject>();
 
     // Use this for initialization
@@ -71,6 +74,10 @@ public class PlanetMeshGenerator : MonoBehaviour, MeshGenerator {
 
     public bool shouldGenerateColliders() {
         return generateColliders;
+    }
+
+    public int getLODLevelToPrecompute() {
+        return LODLevelToPrecompute;
     }
 
     public virtual SurfaceObjectCreator[] GenerateMeshDataFromSurfaceParametrizations(SurfaceGenerator.SurfaceParametrization[] faceParametrization) {
