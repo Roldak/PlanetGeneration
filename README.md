@@ -30,3 +30,7 @@ Procedural generation of planets (or asteroids, etc.) using Unity.
 * Aerial view (03/03/2016):
 
 ![Aerial view](ScreenShots/03-03-2016-2.png)
+
+* Water normals (09/03/2016):
+
+![Water normals](ScreenShots/09-03-2016.png)
